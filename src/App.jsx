@@ -101,6 +101,60 @@ function drawBoltBadge(ctx, cx, cy, r) {
   drawBolt(ctx, cx, cy, r * 0.68, "#2b0620");
 }
 
+function drawHeart(ctx, cx, cy, size) {
+  const w = size, h = size * 0.92;
+  const x = cx - w / 2, y = cy - h / 2;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x + w / 2, y + h / 4);
+  ctx.bezierCurveTo(x + w / 2, y, x, y, x, y + h / 4);
+  ctx.bezierCurveTo(x, y + h / 2, x + w / 2, y + (h * 3) / 4, x + w / 2, y + h);
+  ctx.bezierCurveTo(x + w / 2, y + (h * 3) / 4, x + w, y + h / 2, x + w, y + h / 4);
+  ctx.bezierCurveTo(x + w, y, x + w / 2, y, x + w / 2, y + h / 4);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(x, y, x, y + h);
+  grad.addColorStop(0, "#ff7ec4");
+  grad.addColorStop(0.55, "#ff2f8f");
+  grad.addColorStop(1, "#b8005f");
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.lineWidth = Math.max(1, size * 0.05);
+  ctx.strokeStyle = "rgba(255,255,255,0.85)";
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(x + w * 0.32, y + h * 0.28, w * 0.13, h * 0.18, -0.5, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawCrown(ctx, cx, cy, w) {
+  const h = w * 0.55;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.beginPath();
+  ctx.moveTo(-w / 2, h * 0.35);
+  ctx.lineTo(-w / 2, -h * 0.15);
+  ctx.lineTo(-w * 0.28, h * 0.12);
+  ctx.lineTo(0, -h * 0.55);
+  ctx.lineTo(w * 0.28, h * 0.12);
+  ctx.lineTo(w / 2, -h * 0.15);
+  ctx.lineTo(w / 2, h * 0.35);
+  ctx.closePath();
+  ctx.fillStyle = "#ffd76a";
+  ctx.fill();
+  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = "#a8720a";
+  ctx.stroke();
+  ctx.fillStyle = "#ff2f8f";
+  [[-w / 2, -h * 0.15], [0, -h * 0.55], [w / 2, -h * 0.15]].forEach(([px, py]) => {
+    ctx.beginPath();
+    ctx.arc(px, py, w * 0.05, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.restore();
+}
+
 function drawShield(ctx, cx, cy, size) {
   ctx.save();
   ctx.translate(cx, cy);
@@ -121,12 +175,7 @@ function drawShield(ctx, cx, cy, size) {
   ctx.strokeStyle = "#ffd76a";
   ctx.stroke();
   drawBolt(ctx, 0, 6, size * 0.26, "#ffd76a");
-  ctx.fillStyle = "#ffd76a";
-  for (let i = -1; i <= 1; i++) {
-    ctx.beginPath();
-    ctx.arc(i * w * 0.22, -h / 2 - 6, 4, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  drawCrown(ctx, 0, -h / 2 - 10, w * 0.5);
   ctx.font = "700 12px Tajawal, sans-serif";
   ctx.direction = "rtl";
   ctx.textAlign = "center";
@@ -190,9 +239,8 @@ function drawPill(ctx, cx, cy, w, h, text, font, fill, textColor, withHearts) {
   ctx.direction = "rtl";
   ctx.fillText(text, cx, cy + 1);
   if (withHearts) {
-    ctx.font = `${h * 0.48}px sans-serif`;
-    ctx.fillText("💗", cx - w / 2 + h * 0.5, cy + 1);
-    ctx.fillText("💗", cx + w / 2 - h * 0.5, cy + 1);
+    drawHeart(ctx, cx - w / 2 + h * 0.42, cy, h * 0.5);
+    drawHeart(ctx, cx + w / 2 - h * 0.42, cy, h * 0.5);
   }
 }
 
@@ -216,6 +264,9 @@ const GENDER_LABELS = {
   female: { title: "مواطنة", valid: "صالحة", active: "نشطة", member: "عضوة" },
 };
 
+// NOTE: field names here (display_name, id_number, photo_url, public_gallery)
+// match the Postgres column names in supabase/schema.sql on purpose, so the
+// row you get back from Supabase can be passed straight into this function.
 function drawCard(ctx, W, H, profile) {
   ctx.clearRect(0, 0, W, H);
   ctx.direction = "rtl";
@@ -263,10 +314,7 @@ function drawCard(ctx, W, H, profile) {
     drawImageCover(ctx, profile.photoImg, px, py, pw, ph);
     ctx.restore();
   } else {
-    ctx.font = "90px sans-serif";
-    ctx.fillStyle = "#e0158c";
-    ctx.textAlign = "center";
-    ctx.fillText("💗", px + pw / 2, py + ph / 2 + 32);
+    drawHeart(ctx, px + pw / 2, py + ph / 2, pw * 0.4);
   }
   roundRectPath(ctx, px, py, pw, ph, 20);
   ctx.lineWidth = 5;
@@ -321,6 +369,8 @@ function drawCard(ctx, W, H, profile) {
 
 /* ============================== image resize helper ============================== */
 
+// Shrinks the uploaded photo client-side and hands back both a Blob (to
+// upload to Supabase Storage) and a dataURL (for an instant local preview).
 function resizeImageFile(file, maxDim = 640) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -357,7 +407,7 @@ async function uploadPhoto(userId, blob) {
     .upload(path, blob, { upsert: true, contentType: "image/jpeg" });
   if (error) throw error;
   const { data } = supabase.storage.from("card-photos").getPublicUrl(path);
-  return `${data.publicUrl}?t=${Date.now()}`;
+  return `${data.publicUrl}?t=${Date.now()}`; // cache-bust so edits show immediately
 }
 
 /* ============================== small UI atoms ============================== */
@@ -409,7 +459,7 @@ function PillButton({ children, onClick, variant = "primary", disabled, type = "
 function GenderToggle({ value, onChange }) {
   return (
     <div style={{ display: "flex", gap: 8, marginBottom: 14, justifyContent: "flex-end" }}>
-      {[{ v: "female", l: "مواطنة 👑" }, { v: "male", l: "مواطن 👑" }].map((opt) => (
+      {[{ v: "female", l: "مواطنة" }, { v: "male", l: "مواطن" }].map((opt) => (
         <button key={opt.v} type="button" onClick={() => onChange(opt.v)}
           style={{
             padding: "8px 16px", borderRadius: 999, fontFamily: "Tajawal, sans-serif", fontWeight: 700,
@@ -483,7 +533,7 @@ const CardCanvas = forwardRef(function CardCanvas({ profile, fontsReady, maxWidt
     let cancelled = false;
     if (!profile.photo_url) { setPhotoImg(null); return; }
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    img.crossOrigin = "anonymous"; // needed so the canvas can export to PNG later
     img.onload = () => { if (!cancelled) setPhotoImg(img); };
     img.onerror = () => { if (!cancelled) setPhotoImg(null); };
     img.src = profile.photo_url;
@@ -557,7 +607,9 @@ function PhotoPicker({ preview, onChange }) {
         background: "rgba(255,255,255,0.15)", border: "2px solid rgba(255,255,255,0.3)",
         display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
       }}>
-        {preview ? <img src={preview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "💗"}
+        {preview
+          ? <img src={preview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          : <Heart size={24} color="#ff6fb8" fill="#ff6fb8" />}
       </div>
       <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
     </div>
@@ -569,13 +621,12 @@ function PhotoPicker({ preview, onChange }) {
 function Landing({ onCreate, onLogin, onGallery }) {
   return (
     <div style={{ textAlign: "center", padding: "48px 20px" }}>
-      <div style={{ fontSize: 52, marginBottom: 6 }}>🪐</div>
       <h1 style={{
         fontFamily: "Changa, sans-serif", fontWeight: 800, fontSize: 34, color: "#fff",
         margin: "0 0 10px",
       }}>عالم برق برق</h1>
       <p style={{ color: "#ffd7f0", fontFamily: "Tajawal, sans-serif", fontSize: 15, maxWidth: 340, margin: "0 auto 32px", lineHeight: 1.8 }}>
-        اصنع بطاقة مواطنتك الخاصة، بصورتك واسمك ورقمك الرسمي، وانضم لعالم القلوب والنجوم ⚡
+        اصنع بطاقة مواطنتك الخاصة، بصورتك واسمك ورقمك الرسمي، وانضم لعالم القلوب والنجوم
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
         <PillButton onClick={onCreate} style={{ width: 240 }}>
@@ -687,7 +738,7 @@ function RegisterView({ onBack, onDone }) {
   };
 
   return (
-    <AuthCard title="أنشئ بطاقتك ⚡" onBack={onBack}>
+    <AuthCard title="أنشئ بطاقتك" onBack={onBack}>
       <PhotoPicker preview={photoPreview}
         onChange={(blob, dataUrl) => { setPhotoBlob(blob); setPhotoPreview(dataUrl); }} />
       <TextField icon={User} label="الاسم الذي يظهر على البطاقة" value={displayName}
@@ -878,7 +929,7 @@ function GalleryView({ fontsReady, onBack }) {
         <div style={{ textAlign: "center", color: "#ffd7f0" }}><Loader2 className="bb-spin" /></div>
       ) : items.length === 0 ? (
         <p style={{ textAlign: "center", color: "#ffd7f0", fontFamily: "Tajawal, sans-serif" }}>
-          لا يوجد مواطنون في المعرض العام بعد. كن أول من ينضم! ⚡
+          لا يوجد مواطنون في المعرض العام بعد. كن أول من ينضم!
         </p>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 18 }}>
@@ -900,6 +951,7 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [fontsReady, setFontsReady] = useState(false);
 
+  // Load Google Fonts once, then let the canvas know it's safe to draw text.
   useEffect(() => {
     const link = document.createElement("link");
     link.rel = "stylesheet";
@@ -916,6 +968,7 @@ export default function App() {
     return () => clearTimeout(t);
   }, []);
 
+  // Restore session on load, and keep it in sync if it changes elsewhere.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -1020,4 +1073,4 @@ export default function App() {
       </div>
     </div>
   );
-    }
+                                  }
