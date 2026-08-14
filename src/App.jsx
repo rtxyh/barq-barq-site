@@ -103,27 +103,49 @@ function drawBoltBadge(ctx, cx, cy, r) {
 
 function drawHeart(ctx, cx, cy, size) {
   const w = size, h = size * 0.92;
-  const x = cx - w / 2, y = cy - h / 2;
+  const heartPath = (scale) => {
+    const ww = w * scale, hh = h * scale;
+    const x = cx - ww / 2, y = cy - hh / 2;
+    const p = new Path2D();
+    p.moveTo(x + ww / 2, y + hh / 4);
+    p.bezierCurveTo(x + ww / 2, y, x, y, x, y + hh / 4);
+    p.bezierCurveTo(x, y + hh / 2, x + ww / 2, y + (hh * 3) / 4, x + ww / 2, y + hh);
+    p.bezierCurveTo(x + ww / 2, y + (hh * 3) / 4, x + ww, y + hh / 2, x + ww, y + hh / 4);
+    p.bezierCurveTo(x + ww, y, x + ww / 2, y, x + ww / 2, y + hh / 4);
+    p.closePath();
+    return p;
+  };
+
   ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(x + w / 2, y + h / 4);
-  ctx.bezierCurveTo(x + w / 2, y, x, y, x, y + h / 4);
-  ctx.bezierCurveTo(x, y + h / 2, x + w / 2, y + (h * 3) / 4, x + w / 2, y + h);
-  ctx.bezierCurveTo(x + w / 2, y + (h * 3) / 4, x + w, y + h / 2, x + w, y + h / 4);
-  ctx.bezierCurveTo(x + w, y, x + w / 2, y, x + w / 2, y + h / 4);
-  ctx.closePath();
-  const grad = ctx.createLinearGradient(x, y, x, y + h);
-  grad.addColorStop(0, "#ff7ec4");
-  grad.addColorStop(0.55, "#ff2f8f");
-  grad.addColorStop(1, "#b8005f");
+  // soft drop shadow, then a white die-cut sticker edge behind the gem
+  ctx.shadowColor = "rgba(120,0,60,0.45)";
+  ctx.shadowBlur = size * 0.18;
+  ctx.shadowOffsetY = size * 0.06;
+  ctx.fillStyle = "#ffffff";
+  ctx.fill(heartPath(1.16));
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+
+  // gem body
+  const grad = ctx.createLinearGradient(cx, cy - h / 2, cx, cy + h / 2);
+  grad.addColorStop(0, "#ff9ed4");
+  grad.addColorStop(0.45, "#ff2f8f");
+  grad.addColorStop(1, "#a8004f");
   ctx.fillStyle = grad;
-  ctx.fill();
-  ctx.lineWidth = Math.max(1, size * 0.05);
-  ctx.strokeStyle = "rgba(255,255,255,0.85)";
-  ctx.stroke();
+  ctx.fill(heartPath(1));
+  ctx.strokeStyle = "rgba(255,255,255,0.35)";
+  ctx.lineWidth = Math.max(1, size * 0.03);
+  ctx.stroke(heartPath(1));
+
+  // two glints for a faceted, glossy look
+  ctx.fillStyle = "rgba(255,255,255,0.65)";
   ctx.beginPath();
-  ctx.ellipse(x + w * 0.32, y + h * 0.28, w * 0.13, h * 0.18, -0.5, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.ellipse(cx - w * 0.18, cy - h * 0.22, w * 0.11, h * 0.16, -0.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.4)";
+  ctx.beginPath();
+  ctx.arc(cx + w * 0.12, cy - h * 0.04, w * 0.045, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
@@ -1073,4 +1095,4 @@ export default function App() {
       </div>
     </div>
   );
-                                  }
+      }
